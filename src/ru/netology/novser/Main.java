@@ -1,11 +1,9 @@
 package ru.netology.novser;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.ObjectOutputStream;
+import java.io.*;
 import java.util.ArrayList;
 import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
 
 public class Main {
@@ -25,8 +23,13 @@ public class Main {
         saveGame(saveDir, save2, 2);
         saveGame(saveDir, save3, 3);
 
-        zipFiles(saveDir);
+        File zipFile = zipFiles(saveDir);
         FilesAndDirectories.writeLog();
+
+        //Задача 3
+        openZip(zipFile, saveDir);
+        GameProgress save = openProgress(saveDatList.get(1));
+        System.out.println(save);
     }
 
     private static void saveGame(File saveDirectory, GameProgress save, int saveNumber) {
@@ -40,7 +43,7 @@ public class Main {
         }
     }
 
-    private static void zipFiles(File saveDirectory) {
+    private static File zipFiles(File saveDirectory) {
         File zipFile = FilesAndDirectories.createFile("zip.zip", saveDirectory);
         try (ZipOutputStream zout = new ZipOutputStream(new FileOutputStream(zipFile))) {
             for (File saveFile : saveDatList) {
@@ -60,9 +63,10 @@ public class Main {
             System.out.println(ex.getMessage());
         }
         saveDatList.clear();
+        return zipFile;
     }
 
-    public static File installGame() {
+    private static File installGame() {
         File gamesDir = FilesAndDirectories.createDirectory("Games", new File(""));
         File srcDir = FilesAndDirectories.createDirectory("src", gamesDir);
         File resDir = FilesAndDirectories.createDirectory("res", gamesDir);
@@ -82,5 +86,36 @@ public class Main {
         FilesAndDirectories.writeLog();
 
         return saveDir;
+    }
+
+    private static void openZip(File zipFile, File saveDir) {
+        try (ZipInputStream zin = new ZipInputStream(new FileInputStream(zipFile))) {
+            ZipEntry entry;
+            while ((entry = zin.getNextEntry()) != null) {
+                File saveFile = FilesAndDirectories.createFile(entry.getName(), saveDir);
+                FileOutputStream fout = new FileOutputStream(saveFile);
+                for (int c = zin.read(); c != -1; c = zin.read()) {
+                    fout.write(c);
+                }
+                fout.flush();
+                zin.closeEntry();
+                fout.close();
+                saveDatList.add(saveFile);
+            }
+        } catch (Exception ex) {
+            System.out.println(ex.getMessage());
+        }
+        FilesAndDirectories.deleteFile(zipFile);
+    }
+
+    private static GameProgress openProgress(File saveDat) {
+        GameProgress save = null;
+        try (FileInputStream fis = new FileInputStream(saveDat);
+             ObjectInputStream ois = new ObjectInputStream(fis)) {
+            save = (GameProgress) ois.readObject();
+        } catch (Exception ex) {
+            System.out.println(ex.getMessage());
+        }
+        return save;
     }
 }
